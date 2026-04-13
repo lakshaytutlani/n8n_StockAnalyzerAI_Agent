@@ -1,0 +1,321 @@
+{
+  "name": "Analyze Stock Sub Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5de3338d-3882-457d-b230-6005efca2d70",
+              "name": "ticker",
+              "value": "={{ $json.ticker }}",
+              "type": "string"
+            },
+            {
+              "id": "be7774c3-1733-41ce-ac44-995ee2f494ef",
+              "name": "chart_style",
+              "value": "={{ $json.chart_style }}",
+              "type": "string"
+            },
+            {
+              "id": "5c8c8a19-71d5-47e1-94d8-4c6fc69868e4",
+              "name": "market",
+              "value": "={{ $json.market }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        80,
+        -16
+      ],
+      "id": "c70e8d87-9c3c-4c87-9452-e848e923cc5e",
+      "name": "Set Values"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.chart-img.com/v2/tradingview/advanced-chart/storage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "wWzV02wWxl1JBWFYos0GK46uzPU89spMaf2AKDvB"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"style\": \"{{ $json.chart_style }}\",\n  \"theme\": \"dark\",\n  \"interval\": \"1W\",\n  \"symbol\": \"{{ $json.market }}:{{ $json.ticker }}\",\n  \"override\": {\n    \"showStudyLastValue\": false\n  },\n  \"studies\": [\n    {\n      \"name\": \"Volume\",\n      \"forceOverlay\": true\n    },\n{\n      \"name\": \"Relative Strength Index\"\n    },\n{\n      \"name\": \"Stochastic RSI\"\n}\n  ]\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        320,
+        -16
+      ],
+      "id": "db4a096a-cc19-48cd-9d69-b4f0a05d0d63",
+      "name": "Get Chart URL"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "text": "ROLE\nYou are a financial analyst specializing in interpretive technical analysis of stock charts. You scrutinize the chart and provide a clear, data-driven assessment: candlestick formations, MACD, volume, RSI, Stochastic RSI, and market sentiment. You must justify conclusions using evidence from the chart.\n\nOUTPUT FORMAT (TELEGRAM HTML — MUST FOLLOW)\n- Output must be valid Telegram HTML text.\n- Do NOT use any markdown headers (#, ##, ###) anywhere.\n- Do NOT use markdown bold (**bold**) anywhere.\n- Use <b>...</b> for section titles only.\n- Use plain hyphen lists: - item\n- Do not wrap in <html> or <body>.\n- Keep it concise but complete.\n\nCONTENT TO INCLUDE\n<b>1) Trend & Candlesticks</b>\n- Identify trend (up / down / sideways).\n- Call out notable candlestick patterns (e.g., bullish engulfing, doji, hammer) if visible.\n- Identify key support/resistance zones visible on the chart.\n\n<b>2) RSI</b>\n- Extract the numerical RSI value from the chart.\n- Classify it (overbought / oversold / neutral) based on the extracted value.\n- Explain whether RSI supports or contradicts the price trend.\n- Note divergences if discernible.\n\n<b>3) Stochastic RSI</b>\n- Extract the numerical K and D values from the chart.\n- Interpret crossovers/overbought-oversold conditions based on those values and the visual.\n- Explain whether momentum supports or opposes the trend.\n\n<b>4) Volume / Momentum Notes</b>\n- Comment on volume trend if visible and what it implies.",
+        "imageUrls": "={{ $json.url }}",
+        "options": {
+          "detail": "auto"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        576,
+        -16
+      ],
+      "id": "b9ad2e0e-fb8c-4483-90b0-fb237a4fade0",
+      "name": "Technical Analysis",
+      "credentials": {
+        "openAiApi": {
+          "id": "JIcva0GPbtpR1jHP",
+          "name": "February 8th Sams Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "=5762423671",
+        "file": "={{ $('Get Chart URL').item.json.url }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        816,
+        -16
+      ],
+      "id": "d9852d48-2425-4cb1-8ddc-8b5433d27b75",
+      "name": "Send Chart",
+      "webhookId": "469a4124-ffbb-4921-8146-0b3d87f3a7a0",
+      "credentials": {
+        "telegramApi": {
+          "id": "LgmEvWCybNGvzT0R",
+          "name": "Feb 8th Sams Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5ab88d76-688b-455a-bc9d-80c26a028b64",
+              "name": "response",
+              "value": "={{ $('Technical Analysis').item.json['0'].content[0].text }}",
+              "type": "string"
+            },
+            {
+              "id": "545ab43b-04d2-4614-b065-9e04b057b8df",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1056,
+        -16
+      ],
+      "id": "f94ff194-dc3a-4626-b95c-592685ffc966",
+      "name": "response"
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "ticker",
+              "type": "any"
+            },
+            {
+              "name": "chart_style",
+              "type": "any"
+            },
+            {
+              "name": "market",
+              "type": "any"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -160,
+        -16
+      ],
+      "id": "58b68733-bfec-4247-9c2f-c879ff4f6e90",
+      "name": "Start"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -160,
+        -432
+      ],
+      "id": "628ef353-3316-4f82-83e9-f7e2694f12d1",
+      "name": "When clicking ‘Execute workflow’",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5de3338d-3882-457d-b230-6005efca2d70",
+              "name": "ticker",
+              "value": "=AAPL",
+              "type": "string"
+            },
+            {
+              "id": "be7774c3-1733-41ce-ac44-995ee2f494ef",
+              "name": "chart_style",
+              "value": "=candle",
+              "type": "string"
+            },
+            {
+              "id": "5c8c8a19-71d5-47e1-94d8-4c6fc69868e4",
+              "name": "market",
+              "value": "=NASDAQ",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        112,
+        -432
+      ],
+      "id": "44cdf0d7-8193-4e33-89be-25ba9693bbe5",
+      "name": "Set Values Test",
+      "disabled": true
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Set Values": {
+      "main": [
+        [
+          {
+            "node": "Get Chart URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Chart URL": {
+      "main": [
+        [
+          {
+            "node": "Technical Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Technical Analysis": {
+      "main": [
+        [
+          {
+            "node": "Send Chart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Chart": {
+      "main": [
+        [
+          {
+            "node": "response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start": {
+      "main": [
+        [
+          {
+            "node": "Set Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Set Values Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Values Test": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "604ee45a-a426-45b8-ba2f-8bdeb7b4ba90",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f8915628d001c9f12c477501d438b0ef663b51074cad39b3fe2c37a0f1ebd929"
+  },
+  "id": "ON0p3QPaHDgmXroa",
+  "tags": []
+}
